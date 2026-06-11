@@ -66,9 +66,6 @@ def main():
     user_other = f"client_other_{suffix}"
     email_other = f"client_other_{suffix}@example.com"
     
-    user_admin = f"admin_appt_{suffix}"
-    email_admin = f"admin_appt_{suffix}@example.com"
-    
     password = "testpassword"
 
     # 1. Setup Client, Admin, and Other User
@@ -109,9 +106,9 @@ def main():
         })
         admin_token = res["token"]
 
-        # Admin sets working hours for a future date (2026-06-25, 09:00:00 - 17:00:00)
+        # Admin sets working hours for a future date (2026-06-25, 09:00:00 - 17:00:00 UTC)
         make_request(f"{hours_url}/admin", "POST", {
-            "date": "2026-06-25", "startTime": "09:00:00", "endTime": "17:00:00"
+            "startTime": "2026-06-25T09:00:00Z", "endTime": "2026-06-25T17:00:00Z"
         }, admin_token)
         
         print("PASS: Setup completed. Client, Admin, Pets, and Working Hours established.")
@@ -128,7 +125,7 @@ def main():
     assert code == 401
     
     code, res = make_request(appt_url, "POST", {
-        "petId": pet_id, "date": "2026-06-25", "startTime": "10:00:00", "endTime": "11:00:00"
+        "petId": pet_id, "startTime": "2026-06-25T10:00:00Z", "endTime": "2026-06-25T11:00:00Z"
     })
     print(f"  POST appointments no token: {code}")
     assert code == 401
@@ -140,9 +137,8 @@ def main():
     print("\n2. Testing Past Date Validation...")
     code, res = make_request(appt_url, "POST", {
         "petId": pet_id,
-        "date": "2020-01-01",
-        "startTime": "10:00:00",
-        "endTime": "11:00:00"
+        "startTime": "2020-01-01T10:00:00Z",
+        "endTime": "2020-01-01T11:00:00Z"
     }, client_token)
     print(f"  POST past date: {code} ({res.get('error')})")
     assert code == 400
@@ -155,21 +151,21 @@ def main():
     print("\n3. Testing Working Hours Boundary Checks...")
     # Outside scheduled range (Starts too early)
     code, res = make_request(appt_url, "POST", {
-        "petId": pet_id, "date": "2026-06-25", "startTime": "08:00:00", "endTime": "10:00:00"
+        "petId": pet_id, "startTime": "2026-06-25T08:00:00Z", "endTime": "2026-06-25T10:00:00Z"
     }, client_token)
     print(f"  POST starts before working hours: {code} ({res.get('error')})")
     assert code == 400
     
     # Outside scheduled range (Ends too late)
     code, res = make_request(appt_url, "POST", {
-        "petId": pet_id, "date": "2026-06-25", "startTime": "16:00:00", "endTime": "18:00:00"
+        "petId": pet_id, "startTime": "2026-06-25T16:00:00Z", "endTime": "2026-06-25T18:00:00Z"
     }, client_token)
     print(f"  POST ends after working hours: {code} ({res.get('error')})")
     assert code == 400
 
     # Date with no working hours scheduled
     code, res = make_request(appt_url, "POST", {
-        "petId": pet_id, "date": "2026-06-26", "startTime": "10:00:00", "endTime": "11:00:00"
+        "petId": pet_id, "startTime": "2026-06-26T10:00:00Z", "endTime": "2026-06-26T11:00:00Z"
     }, client_token)
     print(f"  POST on date with no schedule: {code} ({res.get('error')})")
     assert code == 400
@@ -181,7 +177,7 @@ def main():
     # ==========================================
     print("\n4. Testing Invalid Input (startTime >= endTime)...")
     code, res = make_request(appt_url, "POST", {
-        "petId": pet_id, "date": "2026-06-25", "startTime": "12:00:00", "endTime": "11:00:00"
+        "petId": pet_id, "startTime": "2026-06-25T12:00:00Z", "endTime": "2026-06-25T11:00:00Z"
     }, client_token)
     print(f"  POST startTime >= endTime: {code} ({res.get('error')})")
     assert code == 400
@@ -193,7 +189,7 @@ def main():
     print("\n5. Testing Pet Ownership Enforcement...")
     # client_appt attempts to schedule an appointment using client_other's pet ID
     code, res = make_request(appt_url, "POST", {
-        "petId": other_pet_id, "date": "2026-06-25", "startTime": "10:00:00", "endTime": "11:00:00"
+        "petId": other_pet_id, "startTime": "2026-06-25T10:00:00Z", "endTime": "2026-06-25T11:00:00Z"
     }, client_token)
     print(f"  POST with unauthorized pet ID: {code} ({res.get('error')})")
     assert code == 404
@@ -205,9 +201,8 @@ def main():
     print("\n6. Testing Create Appointment (Happy Path)...")
     code, res = make_request(appt_url, "POST", {
         "petId": pet_id,
-        "date": "2026-06-25",
-        "startTime": "10:00:00",
-        "endTime": "11:00:00",
+        "startTime": "2026-06-25T10:00:00Z",
+        "endTime": "2026-06-25T11:00:00Z",
         "notes": "Full groom and claw trim"
     }, client_token)
     print(f"  Create Appointment Status: {code}")
@@ -223,21 +218,21 @@ def main():
     print("\n7. Testing Overlap / Double Booking Conflicts (expect 409)...")
     # Attempt to book at same exact time
     code, res = make_request(appt_url, "POST", {
-        "petId": pet_id, "date": "2026-06-25", "startTime": "10:00:00", "endTime": "11:00:00"
+        "petId": pet_id, "startTime": "2026-06-25T10:00:00Z", "endTime": "2026-06-25T11:00:00Z"
     }, client_token)
     print(f"  POST exact overlap: {code} ({res.get('error')})")
     assert code == 409
 
     # Attempt to book overlapping the start (09:30 - 10:30)
     code, res = make_request(appt_url, "POST", {
-        "petId": pet_id, "date": "2026-06-25", "startTime": "09:30:00", "endTime": "10:30:00"
+        "petId": pet_id, "startTime": "2026-06-25T09:30:00Z", "endTime": "2026-06-25T10:30:00Z"
     }, client_token)
     print(f"  POST start overlap: {code}")
     assert code == 409
 
     # Attempt to book overlapping the end (10:30 - 11:30)
     code, res = make_request(appt_url, "POST", {
-        "petId": pet_id, "date": "2026-06-25", "startTime": "10:30:00", "endTime": "11:30:00"
+        "petId": pet_id, "startTime": "2026-06-25T10:30:00Z", "endTime": "2026-06-25T11:30:00Z"
     }, client_token)
     print(f"  POST end overlap: {code}")
     assert code == 409
@@ -297,7 +292,7 @@ def main():
     print("\n11. Testing Admin Status Update...")
     # Create another appointment to modify status
     code, res = make_request(appt_url, "POST", {
-        "petId": pet_id, "date": "2026-06-25", "startTime": "12:00:00", "endTime": "13:00:00"
+        "petId": pet_id, "startTime": "2026-06-25T12:00:00Z", "endTime": "2026-06-25T13:00:00Z"
     }, client_token)
     appt_id_2 = res["appointmentId"]
     

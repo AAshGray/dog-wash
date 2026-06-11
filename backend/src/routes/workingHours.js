@@ -8,29 +8,21 @@ const router = express.Router();
 /**
  * Validates start and end times, and checks if date is in the past.
  */
-function validateWorkingHours(dateStr, startTimeStr, endTimeStr) {
-  // Check if start_time is before end_time
-  // Format is assumed to be HH:MM:SS or HH:MM
-  const startParts = startTimeStr.split(':').map(Number);
-  const endParts = endTimeStr.split(':').map(Number);
+function validateWorkingHours(startTimeStr, endTimeStr) {
+  const start = new Date(startTimeStr);
+  const end = new Date(endTimeStr);
   
-  const startVal = startParts[0] * 60 + startParts[1];
-  const endVal = endParts[0] * 60 + endParts[1];
+  if (isNaN(start.getTime()) || isNaN(end.getTime())) {
+    return 'Invalid date-time format. Expected ISO 8601 strings';
+  }
 
-  if (startVal >= endVal) {
+  if (start >= end) {
     return 'startTime must be strictly before endTime';
   }
 
-  // Check if date is in the past (comparing dates, ignoring current time)
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-
-  const targetDate = new Date(`${dateStr}T00:00:00`);
-  if (isNaN(targetDate.getTime())) {
-    return 'Invalid date format. Expected YYYY-MM-DD';
-  }
-
-  if (targetDate < today) {
+  // Check if start date-time is in the past (comparing with current time)
+  const now = new Date();
+  if (start < now) {
     return 'Cannot set working hours for a past date';
   }
 
@@ -44,9 +36,16 @@ function validateWorkingHours(dateStr, startTimeStr, endTimeStr) {
 router.get('/', authenticateToken, async (req, res) => {
   try {
     const [rows] = await db.query(
-      'SELECT id, date, start_time, end_time FROM working_hours ORDER BY date ASC'
+      'SELECT id, start_time, end_time FROM working_hours ORDER BY start_time ASC'
     );
-    res.status(200).json({ workingHours: rows });
+    
+    const formatted = rows.map(r => ({
+      id: r.id,
+      start_time: r.start_time instanceof Date ? r.start_time.toISOString() : r.start_time,
+      end_time: r.end_time instanceof Date ? r.end_time.toISOString() : r.end_time
+    }));
+
+    res.status(200).json({ workingHours: formatted });
   } catch (err) {
     console.error('Error fetching working hours:', err);
     res.status(500).json({ error: 'An error occurred while fetching working hours' });
@@ -55,18 +54,28 @@ router.get('/', authenticateToken, async (req, res) => {
 
 /**
  * GET /api/working-hours/:date
- * Retrieves working hours for a specific date.
+ * Retrieves working hours for a specific UTC date.
+ * Kept for test suite backward-compatibility.
  */
 router.get('/:date', authenticateToken, async (req, res) => {
   try {
     const [rows] = await db.query(
-      'SELECT id, date, start_time, end_time FROM working_hours WHERE date = ?',
+      'SELECT id, start_time, end_time FROM working_hours WHERE DATE(start_time) = ?',
       [req.params.date]
     );
     if (rows.length === 0) {
       return res.status(404).json({ error: 'No working hours scheduled for this date' });
     }
-    res.status(200).json({ workingHours: rows[0] });
+    
+    const r = rows[0];
+    res.status(200).json({ 
+      workingHours: {
+        id: r.id,
+        date: req.params.date,
+        start_time: r.start_time instanceof Date ? r.start_time.toISOString().replace('.000Z', 'Z') : r.start_time,
+        end_time: r.end_time instanceof Date ? r.end_time.toISOString().replace('.000Z', 'Z') : r.end_time
+      }
+    });
   } catch (err) {
     console.error('Error fetching working hours for date:', err);
     res.status(500).json({ error: 'An error occurred while fetching working hours' });
@@ -75,40 +84,51 @@ router.get('/:date', authenticateToken, async (req, res) => {
 
 /**
  * POST /api/working-hours/admin
- * Admin-only: Adds working hours for a specific date.
- * Returns 409 Conflict if hours are already set for the date.
+ * Admin-only: Adds working hours for a specific date/time window.
+ * Returns 409 Conflict if hours overlap with an existing slot.
  */
 router.post('/admin', authenticateToken, requireAdmin, async (req, res) => {
-  const { date, startTime, endTime } = req.body;
+  const { startTime, endTime } = req.body;
 
-  if (!date || !startTime || !endTime) {
-    return res.status(400).json({ error: 'Date, startTime, and endTime are required' });
+  if (!startTime || !endTime) {
+    return res.status(400).json({ error: 'startTime and endTime are required' });
   }
 
-  const validationError = validateWorkingHours(date, startTime, endTime);
+  const validationError = validateWorkingHours(startTime, endTime);
   if (validationError) {
     return res.status(400).json({ error: validationError });
   }
 
+  // Convert inputs to JS Dates for comparison format matching
+  const startObj = new Date(startTime);
+  const endObj = new Date(endTime);
+
   try {
+    // Check for overlapping intervals
+    const [existing] = await db.query(
+      'SELECT id FROM working_hours WHERE start_time < ? AND end_time > ?',
+      [endObj, startObj]
+    );
+
+    if (existing.length > 0) {
+      return res.status(409).json({ error: 'Working hours are already set for this date' });
+    }
+
     const slotId = crypto.randomUUID();
     
     await db.query(
-      `INSERT INTO working_hours (id, date, start_time, end_time) 
-       VALUES (?, ?, ?, ?)`,
-      [slotId, date, startTime, endTime]
+      `INSERT INTO working_hours (id, start_time, end_time) 
+       VALUES (?, ?, ?)`,
+      [slotId, startObj, endObj]
     );
 
     res.status(201).json({
       message: 'Working hours set successfully',
       slotId,
-      date
+      startTime,
+      endTime
     });
   } catch (err) {
-    // Catch MySQL duplicate unique key constraint
-    if (err.code === 'ER_DUP_ENTRY') {
-      return res.status(409).json({ error: 'Working hours are already set for this date' });
-    }
     console.error('Error setting working hours:', err);
     res.status(500).json({ error: 'An error occurred while setting working hours' });
   }
@@ -119,21 +139,34 @@ router.post('/admin', authenticateToken, requireAdmin, async (req, res) => {
  * Admin-only: Updates existing working hours by ID.
  */
 router.put('/admin/:id', authenticateToken, requireAdmin, async (req, res) => {
-  const { date, startTime, endTime } = req.body;
+  const { startTime, endTime } = req.body;
 
-  if (!date || !startTime || !endTime) {
-    return res.status(400).json({ error: 'Date, startTime, and endTime are required' });
+  if (!startTime || !endTime) {
+    return res.status(400).json({ error: 'startTime and endTime are required' });
   }
 
-  const validationError = validateWorkingHours(date, startTime, endTime);
+  const validationError = validateWorkingHours(startTime, endTime);
   if (validationError) {
     return res.status(400).json({ error: validationError });
   }
 
+  const startObj = new Date(startTime);
+  const endObj = new Date(endTime);
+
   try {
+    // Check for overlapping intervals excluding this slot
+    const [existing] = await db.query(
+      'SELECT id FROM working_hours WHERE id != ? AND start_time < ? AND end_time > ?',
+      [req.params.id, endObj, startObj]
+    );
+
+    if (existing.length > 0) {
+      return res.status(409).json({ error: 'Working hours are already set for this date' });
+    }
+
     const [result] = await db.query(
-      'UPDATE working_hours SET date = ?, start_time = ?, end_time = ? WHERE id = ?',
-      [date, startTime, endTime, req.params.id]
+      'UPDATE working_hours SET start_time = ?, end_time = ? WHERE id = ?',
+      [startObj, endObj, req.params.id]
     );
 
     if (result.affectedRows === 0) {
@@ -145,9 +178,6 @@ router.put('/admin/:id', authenticateToken, requireAdmin, async (req, res) => {
       slotId: req.params.id
     });
   } catch (err) {
-    if (err.code === 'ER_DUP_ENTRY') {
-      return res.status(409).json({ error: 'Working hours are already set for this date' });
-    }
     console.error('Error updating working hours:', err);
     res.status(500).json({ error: 'An error occurred while updating working hours' });
   }

@@ -20,9 +20,9 @@ describe('Dog Wash E2E Integration Tests', () => {
   const password = 'testpassword';
 
   beforeAll(async () => {
-    // Clean up any test state for the date
-    await db.query("DELETE FROM appointments WHERE date = '2026-07-01'");
-    await db.query("DELETE FROM working_hours WHERE date = '2026-07-01'");
+    // Clean up any test state for the dates used
+    await db.query("DELETE FROM appointments WHERE start_time >= '2026-07-01 00:00:00' AND start_time < '2026-07-02 00:00:00'");
+    await db.query("DELETE FROM working_hours WHERE start_time >= '2026-07-01 00:00:00' AND start_time < '2026-07-02 00:00:00'");
 
     // 1. Manually seed an admin directly in the database (bypassing the public registration endpoint)
     const adminId = crypto.randomUUID();
@@ -98,14 +98,13 @@ describe('Dog Wash E2E Integration Tests', () => {
   });
 
   test('Flow 1: Register, add pet, add appointment, and verify admin visibility', async () => {
-    // 1. Add working hours for 2026-07-01 (09:00 - 17:00) so we can book
+    // 1. Add working hours for 2026-07-01 (09:00 - 17:00 UTC) so we can book
     const whRes = await request(app)
       .post('/api/working-hours/admin')
       .set('Authorization', `Bearer ${adminToken}`)
       .send({
-        date: '2026-07-01',
-        startTime: '09:00:00',
-        endTime: '17:00:00'
+        startTime: '2026-07-01T09:00:00Z',
+        endTime: '2026-07-01T17:00:00Z'
       });
     expect(whRes.statusCode).toBe(201);
 
@@ -128,9 +127,8 @@ describe('Dog Wash E2E Integration Tests', () => {
       .set('Authorization', `Bearer ${clientToken}`)
       .send({
         petId,
-        date: '2026-07-01',
-        startTime: '10:00:00',
-        endTime: '11:00:00',
+        startTime: '2026-07-01T10:00:00Z',
+        endTime: '2026-07-01T11:00:00Z',
         notes: 'Oatmeal bath'
       });
     expect(apptRes.statusCode).toBe(201);
@@ -175,9 +173,8 @@ describe('Dog Wash E2E Integration Tests', () => {
       .set('Authorization', `Bearer ${clientToken}`)
       .send({
         petId,
-        date: '2026-07-01',
-        startTime: '13:00:00',
-        endTime: '14:00:00'
+        startTime: '2026-07-01T13:00:00Z',
+        endTime: '2026-07-01T14:00:00Z'
       });
     expect(apptRes.statusCode).toBe(403);
   });
@@ -216,15 +213,14 @@ describe('Dog Wash E2E Integration Tests', () => {
       });
     const activePetId = petRes.body.petId;
 
-    // Try to book outside working hours (work is 09:00 - 17:00, try 18:00 - 19:00)
+    // Try to book outside working hours (work is 09:00 - 17:00, try 18:00 - 19:00 UTC)
     const apptRes = await request(app)
       .post('/api/appointments')
       .set('Authorization', `Bearer ${activeToken}`)
       .send({
         petId: activePetId,
-        date: '2026-07-01',
-        startTime: '18:00:00',
-        endTime: '19:00:00'
+        startTime: '2026-07-01T18:00:00Z',
+        endTime: '2026-07-01T19:00:00Z'
       });
     expect(apptRes.statusCode).toBe(400);
     expect(apptRes.body.error).toContain('fall outside working hours');

@@ -58,14 +58,8 @@ def main():
     
     # Generate unique credentials for repeatable state
     suffix_c = str(uuid.uuid4())[:8]
-    suffix_a = str(uuid.uuid4())[:8]
-    
     user_client = f"client_wh_{suffix_c}"
     email_client = f"client_wh_{suffix_c}@example.com"
-    
-    user_admin = f"admin_wh_{suffix_a}"
-    email_admin = f"admin_wh_{suffix_a}@example.com"
-    
     password = "testpassword"
 
     # 1. Login/Register Client
@@ -101,7 +95,7 @@ def main():
     print(f"  GET hours no token: {code}")
     assert code == 401
     
-    code, res = make_request(f"{hours_url}/admin", "POST", {"date": "2026-06-20", "startTime": "09:00:00", "endTime": "17:00:00"})
+    code, res = make_request(f"{hours_url}/admin", "POST", {"startTime": "2026-06-20T09:00:00Z", "endTime": "2026-06-20T17:00:00Z"})
     print(f"  POST hours no token: {code}")
     assert code == 401
     print("PASS: Unauthenticated requests blocked with 401.")
@@ -112,7 +106,7 @@ def main():
     print("\n2. Testing Time/Date Validations (expect 400)...")
     # EndTime before StartTime
     code, res = make_request(f"{hours_url}/admin", "POST", {
-        "date": "2026-06-20", "startTime": "17:00:00", "endTime": "09:00:00"
+        "startTime": "2026-06-20T17:00:00Z", "endTime": "2026-06-20T09:00:00Z"
     }, admin_token)
     print(f"  POST endTime < startTime: {code} ({res.get('error')})")
     assert code == 400
@@ -120,7 +114,7 @@ def main():
 
     # Past date
     code, res = make_request(f"{hours_url}/admin", "POST", {
-        "date": "2020-01-01", "startTime": "09:00:00", "endTime": "17:00:00"
+        "startTime": "2020-01-01T09:00:00Z", "endTime": "2020-01-01T17:00:00Z"
     }, admin_token)
     print(f"  POST past date: {code} ({res.get('error')})")
     assert code == 400
@@ -136,7 +130,7 @@ def main():
     initial_count = len(res["workingHours"])
     
     code, res = make_request(f"{hours_url}/admin", "POST", {
-        "date": "2026-06-20", "startTime": "09:00:00", "endTime": "17:00:00"
+        "startTime": "2026-06-20T09:00:00Z", "endTime": "2026-06-20T17:00:00Z"
     }, admin_token)
     print(f"  POST hours status: {code}")
     assert code == 201
@@ -149,7 +143,7 @@ def main():
     # ==========================================
     print("\n4. Testing Duplicate Date Conflict (expect 409)...")
     code, res = make_request(f"{hours_url}/admin", "POST", {
-        "date": "2026-06-20", "startTime": "10:00:00", "endTime": "18:00:00"
+        "startTime": "2026-06-20T10:00:00Z", "endTime": "2026-06-20T18:00:00Z"
     }, admin_token)
     print(f"  POST duplicate date: {code} ({res.get('error')})")
     assert code == 409
@@ -165,7 +159,7 @@ def main():
     assert len(current_list) == initial_count + 1
     matching = [h for h in current_list if h["id"] == slot_id_1]
     assert len(matching) == 1
-    assert matching[0]["start_time"] == "09:00:00"
+    assert "09:00:00" in matching[0]["start_time"]
     print("PASS: Verified schedule count and details.")
 
     # ==========================================
@@ -173,7 +167,7 @@ def main():
     # ==========================================
     print("\n6. Testing Update Working Hours (PUT)...")
     code, res = make_request(f"{hours_url}/admin/{slot_id_1}", "PUT", {
-        "date": "2026-06-20", "startTime": "08:00:00", "endTime": "16:00:00"
+        "startTime": "2026-06-20T08:00:00Z", "endTime": "2026-06-20T16:00:00Z"
     }, admin_token)
     print(f"  PUT update status: {code}")
     assert code == 200
@@ -181,7 +175,7 @@ def main():
     
     # Verify change
     code, res = make_request(f"{hours_url}/2026-06-20", "GET", token=client_token)
-    assert res["workingHours"]["start_time"] == "08:00:00"
+    assert "08:00:00" in res["workingHours"]["start_time"]
     print("PASS: Update working hours works.")
 
     # ==========================================
@@ -190,13 +184,13 @@ def main():
     print("\n7. Testing Update Duplicate Date Conflict (expect 409)...")
     # Add a second slot
     code, res = make_request(f"{hours_url}/admin", "POST", {
-        "date": "2026-06-21", "startTime": "09:00:00", "endTime": "17:00:00"
+        "startTime": "2026-06-21T09:00:00Z", "endTime": "2026-06-21T17:00:00Z"
     }, admin_token)
     slot_id_2 = res["slotId"]
     
     # Attempt to update first slot to use second slot's date
     code, res = make_request(f"{hours_url}/admin/{slot_id_1}", "PUT", {
-        "date": "2026-06-21", "startTime": "08:00:00", "endTime": "16:00:00"
+        "startTime": "2026-06-21T08:00:00Z", "endTime": "2026-06-21T16:00:00Z"
     }, admin_token)
     print(f"  PUT duplicate date: {code} ({res.get('error')})")
     assert code == 409
@@ -208,7 +202,7 @@ def main():
     print("\n8. Testing Client Access Boundaries (expect 403)...")
     # Client tries to update
     code, res = make_request(f"{hours_url}/admin/{slot_id_1}", "PUT", {
-        "date": "2026-06-20", "startTime": "08:00:00", "endTime": "16:00:00"
+        "startTime": "2026-06-20T08:00:00Z", "endTime": "2026-06-20T16:00:00Z"
     }, client_token)
     print(f"  Client PUT status: {code}")
     assert code == 403

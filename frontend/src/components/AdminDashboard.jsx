@@ -51,11 +51,24 @@ export default function AdminDashboard() {
     }
 
     try {
+      // Combine local inputs into local Date objects
+      const localStart = new Date(`${whDate}T${whStartTime}`);
+      const localEnd = new Date(`${whDate}T${whEndTime}`);
+
+      if (isNaN(localStart.getTime()) || isNaN(localEnd.getTime())) {
+        setWhError('Invalid date or time selected');
+        return;
+      }
+
+      // Convert to UTC ISO strings
+      const utcStartTime = localStart.toISOString();
+      const utcEndTime = localEnd.toISOString();
+
       await apiRequest('/working-hours/admin', 'POST', {
-        date: whDate,
-        startTime: whStartTime + ':00',
-        endTime: whEndTime + ':00'
+        startTime: utcStartTime,
+        endTime: utcEndTime
       });
+      
       setWhSuccess('Working hours set successfully!');
       setWhDate('');
       setWhStartTime('');
@@ -130,16 +143,19 @@ export default function AdminDashboard() {
     }
   }
 
-  // Format Time representation from "09:00:00" -> "09:00"
-  function formatTime(t) {
-    return t ? t.substring(0, 5) : '';
+  // Format UTC ISO string into client local time: "09:00 AM"
+  function formatTime(isoString) {
+    if (!isoString) return '';
+    const d = new Date(isoString);
+    return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   }
 
-  // Format Date representation
-  function formatDate(d) {
-    if (!d) return '';
-    return new Date(d).toLocaleDateString('en-US', {
-      weekday: 'short', month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC'
+  // Format UTC ISO string into client local date: "Thu, Jun 11, 2026"
+  function formatDate(isoString) {
+    if (!isoString) return '';
+    const d = new Date(isoString);
+    return d.toLocaleDateString([], {
+      weekday: 'short', month: 'short', day: 'numeric', year: 'numeric'
     });
   }
 
@@ -216,7 +232,7 @@ export default function AdminDashboard() {
                   borderRadius: 'var(--border-radius-md)' 
                 }}>
                   <div style={{ flex: 1 }}>
-                    <strong style={{ fontSize: '0.85rem', display: 'block' }}>{formatDate(wh.date)}</strong>
+                    <strong style={{ fontSize: '0.85rem', display: 'block' }}>{formatDate(wh.start_time)}</strong>
                     <span style={{ fontSize: '0.8rem', color: 'var(--pico-primary)', fontWeight: 600 }}>
                       {formatTime(wh.start_time)} - {formatTime(wh.end_time)}
                     </span>
@@ -340,7 +356,7 @@ export default function AdminDashboard() {
                       <span style={{ color: 'var(--pico-muted-color)' }}>✉️ {appt.client_email}</span> <br/>
                       <span style={{ color: 'var(--pico-muted-color)' }}>📞 {appt.client_phone}</span>
                     </td>
-                    <td>{formatDate(appt.date)}</td>
+                    <td>{formatDate(appt.start_time)}</td>
                     <td style={{ color: 'var(--pico-primary)', fontWeight: '600' }}>
                       {formatTime(appt.start_time)} - {formatTime(appt.end_time)}
                     </td>

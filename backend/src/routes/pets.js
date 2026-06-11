@@ -15,8 +15,8 @@ router.use(authenticateToken);
 router.post('/', async (req, res) => {
   const { name, breed, age, special_notes } = req.body;
 
-  if (!name || !breed || age === undefined) {
-    return res.status(400).json({ error: 'Name, breed, and age are required' });
+  if (!name || !breed) {
+    return res.status(400).json({ error: 'Name and breed are required' });
   }
 
   try {
@@ -25,7 +25,7 @@ router.post('/', async (req, res) => {
     await db.query(
       `INSERT INTO pets (id, user_id, name, breed, age, special_notes) 
        VALUES (?, ?, ?, ?, ?, ?)`,
-      [petId, req.user.id, name, breed, age, special_notes || '']
+      [petId, req.user.id, name, breed, age ?? null, special_notes || '']
     );
 
     res.status(201).json({
@@ -84,8 +84,8 @@ router.get('/:id', async (req, res) => {
 router.put('/:id', async (req, res) => {
   const { name, breed, age, special_notes } = req.body;
 
-  if (!name || !breed || age === undefined) {
-    return res.status(400).json({ error: 'Name, breed, and age are required' });
+  if (!name || !breed) {
+    return res.status(400).json({ error: 'Name and breed are required' });
   }
 
   try {
@@ -101,7 +101,7 @@ router.put('/:id', async (req, res) => {
 
     await db.query(
       'UPDATE pets SET name = ?, breed = ?, age = ?, special_notes = ? WHERE id = ?',
-      [name, breed, age, special_notes || '', req.params.id]
+      [name, breed, age ?? null, special_notes || '', req.params.id]
     );
 
     res.status(200).json({ message: 'Pet updated successfully' });

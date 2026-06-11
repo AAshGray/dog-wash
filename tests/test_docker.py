@@ -4,6 +4,7 @@ import sys
 import urllib.request
 import json
 import socket
+import os
 
 def run_command(cmd, check=True):
     result = subprocess.run(cmd, shell=True, text=True, capture_output=True)
@@ -20,7 +21,31 @@ def check_port(port):
         except Exception:
             return False
 
+def load_env():
+    env = {
+        "DB_ROOT_PASSWORD": "rootpassword",
+        "DB_USER": "dogwash_user",
+        "DB_PASSWORD": "dogwash_password",
+        "DB_NAME": "dog_wash",
+    }
+    if os.path.exists(".env"):
+        with open(".env", "r") as f:
+            for line in f:
+                line = line.strip()
+                if not line or line.startswith("#"):
+                    continue
+                if "=" in line:
+                    k, v = line.split("=", 1)
+                    env[k.strip()] = v.strip()
+    return env
+
 def main():
+    env_config = load_env()
+    db_root_password = env_config.get("DB_ROOT_PASSWORD")
+    db_user = env_config.get("DB_USER")
+    db_password = env_config.get("DB_PASSWORD")
+    db_name = env_config.get("DB_NAME")
+
     failed = False
     print("=== SETUP: Building and starting services ===")
     
@@ -107,8 +132,8 @@ def main():
             
             p_ok = env_vars.get("PORT") == "5000"
             h_ok = env_vars.get("DB_HOST") == "db"
-            u_ok = env_vars.get("DB_USER") == "dogwash_user"
-            n_ok = env_vars.get("DB_NAME") == "dog_wash"
+            u_ok = env_vars.get("DB_USER") == db_user
+            n_ok = env_vars.get("DB_NAME") == db_name
             s_ok = bool(env_vars.get("JWT_SECRET"))
             enc_key = env_vars.get("ENCRYPTION_KEY", "")
             k_ok = len(enc_key) == 64 and all(c in '0123456789abcdefABCDEF' for c in enc_key)
@@ -133,7 +158,7 @@ def main():
         print("TEST 6: MySQL accepts connections... ", end="", flush=True)
         mysql_alive = False
         for _ in range(10):
-            res = run_command("docker exec dogwash_db mysqladmin ping -u root -prootpassword", check=False)
+            res = run_command(f"docker exec dogwash_db mysqladmin ping -u root -p{db_root_password}", check=False)
             if "mysqld is alive" in res.stdout:
                 mysql_alive = True
                 break
@@ -144,10 +169,10 @@ def main():
             print("FAIL")
             failed = True
 
-        # TEST 7: dogwash_user can connect to dog_wash
-        print("TEST 7: dogwash_user can connect to dog_wash... ", end="", flush=True)
+        # TEST 7: db_user can connect to db_name
+        print(f"TEST 7: {db_user} can connect to {db_name}... ", end="", flush=True)
         try:
-            res = run_command('docker exec dogwash_db mysql -u dogwash_user -pdogwash_password -e "USE dog_wash;"', check=False)
+            res = run_command(f'docker exec dogwash_db mysql -u {db_user} -p{db_password} -e "USE {db_name};"', check=False)
             if res.returncode == 0:
                 print("PASS")
             else:
@@ -161,7 +186,7 @@ def main():
         # TEST 8: All 4 tables exist
         print("TEST 8: All 4 tables exist... ", end="", flush=True)
         try:
-            tables_out = run_command('docker exec dogwash_db mysql -u dogwash_user -pdogwash_password dog_wash -e "SHOW TABLES;"').stdout
+            tables_out = run_command(f'docker exec dogwash_db mysql -u {db_user} -p{db_password} {db_name} -e "SHOW TABLES;"').stdout
             tables = [line.strip() for line in tables_out.strip().split("\n")]
             has_users = "users" in tables
             has_pets = "pets" in tables
@@ -181,7 +206,7 @@ def main():
         # TEST 9: users table has email_hash, encrypted_* columns, role, is_banned
         print("TEST 9: users table has correct columns... ", end="", flush=True)
         try:
-            cols_out = run_command('docker exec dogwash_db mysql -u dogwash_user -pdogwash_password dog_wash -e "DESCRIBE users;"').stdout
+            cols_out = run_command(f'docker exec dogwash_db mysql -u {db_user} -p{db_password} {db_name} -e "DESCRIBE users;"').stdout
             cols = [line.split("\t")[0].strip() for line in cols_out.strip().split("\n")]
             has_eh = "email_hash" in cols
             has_en = "encrypted_name" in cols
@@ -203,9 +228,8 @@ def main():
         # TEST 10: appointments.status ENUM has all 4 values
         print("TEST 10: appointments.status ENUM has all 4 values... ", end="", flush=True)
         try:
-            status_col = run_command('docker exec dogwash_db mysql -u dogwash_user -pdogwash_password dog_wash -e "SHOW COLUMNS FROM appointments LIKE \'status\';"').stdout
+            status_col = run_command(f'docker exec dogwash_db mysql -u {db_user} -p{db_password} {db_name} -e "SHOW COLUMNS FROM appointments LIKE \'status\';"').stdout
             expected = "'pending','confirmed','completed','cancelled'"
-            # Check if all four values are defined in the ENUM type
             if any(expected in line for line in status_col.split("\n")):
                 print("PASS")
             else:
@@ -220,9 +244,9 @@ def main():
         # TEST 11: 3 foreign keys exist in information_schema
         print("TEST 11: 3 foreign keys exist... ", end="", flush=True)
         try:
-            fk1 = run_command('docker exec dogwash_db mysql -u dogwash_user -pdogwash_password dog_wash -N -e "SELECT COUNT(*) FROM information_schema.KEY_COLUMN_USAGE WHERE TABLE_SCHEMA=\'dog_wash\' AND TABLE_NAME=\'pets\' AND REFERENCED_TABLE_NAME=\'users\';"').stdout.strip()
-            fk2 = run_command('docker exec dogwash_db mysql -u dogwash_user -pdogwash_password dog_wash -N -e "SELECT COUNT(*) FROM information_schema.KEY_COLUMN_USAGE WHERE TABLE_SCHEMA=\'dog_wash\' AND TABLE_NAME=\'appointments\' AND REFERENCED_TABLE_NAME=\'users\';"').stdout.strip()
-            fk3 = run_command('docker exec dogwash_db mysql -u dogwash_user -pdogwash_password dog_wash -N -e "SELECT COUNT(*) FROM information_schema.KEY_COLUMN_USAGE WHERE TABLE_SCHEMA=\'dog_wash\' AND TABLE_NAME=\'appointments\' AND REFERENCED_TABLE_NAME=\'pets\';"').stdout.strip()
+            fk1 = run_command(f"docker exec dogwash_db mysql -u {db_user} -p{db_password} {db_name} -N -e \"SELECT COUNT(*) FROM information_schema.KEY_COLUMN_USAGE WHERE TABLE_SCHEMA='{db_name}' AND TABLE_NAME='pets' AND REFERENCED_TABLE_NAME='users';\"").stdout.strip()
+            fk2 = run_command(f"docker exec dogwash_db mysql -u {db_user} -p{db_password} {db_name} -N -e \"SELECT COUNT(*) FROM information_schema.KEY_COLUMN_USAGE WHERE TABLE_SCHEMA='{db_name}' AND TABLE_NAME='appointments' AND REFERENCED_TABLE_NAME='users';\"").stdout.strip()
+            fk3 = run_command(f"docker exec dogwash_db mysql -u {db_user} -p{db_password} {db_name} -N -e \"SELECT COUNT(*) FROM information_schema.KEY_COLUMN_USAGE WHERE TABLE_SCHEMA='{db_name}' AND TABLE_NAME='appointments' AND REFERENCED_TABLE_NAME='pets';\"").stdout.strip()
             
             if fk1 == "1" and fk2 == "1" and fk3 == "1":
                 print("PASS")
@@ -238,7 +262,7 @@ def main():
         # TEST 12: users table is InnoDB + utf8mb4_unicode_ci
         print("TEST 12: users table is InnoDB + utf8mb4_unicode_ci... ", end="", flush=True)
         try:
-            info = run_command('docker exec dogwash_db mysql -u dogwash_user -pdogwash_password dog_wash -e "SELECT ENGINE, TABLE_COLLATION FROM information_schema.TABLES WHERE TABLE_SCHEMA=\'dog_wash\' AND TABLE_NAME=\'users\';"').stdout
+            info = run_command(f"docker exec dogwash_db mysql -u {db_user} -p{db_password} {db_name} -e \"SELECT ENGINE, TABLE_COLLATION FROM information_schema.TABLES WHERE TABLE_SCHEMA='{db_name}' AND TABLE_NAME='users';\"").stdout
             has_engine = "InnoDB" in info
             has_collation = "utf8mb4_unicode_ci" in info
             if has_engine and has_collation:

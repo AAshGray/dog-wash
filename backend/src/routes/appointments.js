@@ -6,28 +6,6 @@ const { authenticateToken, requireAdmin } = require('../middleware/auth');
 
 const router = express.Router();
 
-/**
- * Converts "HH:MM:SS" or "HH:MM" to minutes from midnight.
- */
-function toMinutes(timeStr) {
-  const parts = timeStr.split(':').map(Number);
-  return parts[0] * 60 + (parts[1] || 0);
-}
-
-/**
- * Checks if target window [start, end] is fully within work window [workStart, workEnd].
- */
-function isWithinWindow(start, end, workStart, workEnd) {
-  return toMinutes(start) >= toMinutes(workStart) && toMinutes(end) <= toMinutes(workEnd);
-}
-
-/**
- * Checks if two time windows [s1, e1] and [s2, e2] overlap.
- */
-function hasOverlap(s1, e1, s2, e2) {
-  return toMinutes(s1) < toMinutes(e2) && toMinutes(e1) > toMinutes(s2);
-}
-
 // All routes require user authentication
 router.use(authenticateToken);
 
@@ -37,25 +15,27 @@ router.use(authenticateToken);
  * Validates against working hours, pet ownership, date/time boundaries, and scheduling conflicts.
  */
 router.post('/', async (req, res) => {
-  const { petId, date, startTime, endTime, notes } = req.body;
+  const { petId, startTime, endTime, notes } = req.body;
 
-  if (!petId || !date || !startTime || !endTime) {
-    return res.status(400).json({ error: 'petId, date, startTime, and endTime are required' });
+  if (!petId || !startTime || !endTime) {
+    return res.status(400).json({ error: 'petId, startTime, and endTime are required' });
+  }
+
+  const start = new Date(startTime);
+  const end = new Date(endTime);
+
+  if (isNaN(start.getTime()) || isNaN(end.getTime())) {
+    return res.status(400).json({ error: 'Invalid date-time format' });
   }
 
   // Basic check: startTime must be strictly before endTime
-  if (toMinutes(startTime) >= toMinutes(endTime)) {
+  if (start >= end) {
     return res.status(400).json({ error: 'startTime must be strictly before endTime' });
   }
 
-  // Check that the date is not in the past
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const targetDate = new Date(`${date}T00:00:00`);
-  if (isNaN(targetDate.getTime())) {
-    return res.status(400).json({ error: 'Invalid date format. Expected YYYY-MM-DD' });
-  }
-  if (targetDate < today) {
+  // Check that the date-time is not in the past
+  const now = new Date();
+  if (start < now) {
     return res.status(400).json({ error: 'Cannot book appointments for a past date' });
   }
 
@@ -66,39 +46,51 @@ router.post('/', async (req, res) => {
       return res.status(404).json({ error: 'Pet not found or unauthorized' });
     }
 
-    // 2. Load working hours for the date
-    const [hours] = await db.query('SELECT start_time, end_time FROM working_hours WHERE date = ?', [date]);
-    if (hours.length === 0) {
-      return res.status(400).json({ error: 'The groomer has no working hours scheduled for this date' });
-    }
+    // 2. Load working hours that cover this appointment fully
+    const [hours] = await db.query(
+      'SELECT start_time, end_time FROM working_hours WHERE start_time <= ? AND end_time >= ?',
+      [start, end]
+    );
 
-    const { start_time: workStart, end_time: workEnd } = hours[0];
-    
-    // Validate appointment is within working hours
-    if (!isWithinWindow(startTime, endTime, workStart, workEnd)) {
+    if (hours.length === 0) {
+      // Check if there are any working hours scheduled for this local date
+      const [anyHours] = await db.query(
+        'SELECT start_time, end_time FROM working_hours WHERE DATE(start_time) = DATE(?)',
+        [start]
+      );
+      if (anyHours.length === 0) {
+        return res.status(400).json({ error: 'The groomer has no working hours scheduled for this date' });
+      }
+      
+      const wh = anyHours[0];
+      const ws = wh.start_time instanceof Date ? wh.start_time.toISOString() : wh.start_time;
+      const we = wh.end_time instanceof Date ? wh.end_time.toISOString() : wh.end_time;
+      
+      // Extract HH:MM UTC representation
+      const fmtStart = ws.substring(11, 16);
+      const fmtEnd = we.substring(11, 16);
+      
       return res.status(400).json({
-        error: `Selected times fall outside working hours for this date (Working hours: ${workStart.substring(0, 5)} - ${workEnd.substring(0, 5)})`
+        error: `Selected times fall outside working hours for this date (Working hours: ${fmtStart} - ${fmtEnd})`
       });
     }
 
     // 3. Check for double booking conflicts (non-cancelled overlapping appointments)
     const [existing] = await db.query(
-      "SELECT start_time, end_time FROM appointments WHERE date = ? AND status != 'cancelled'",
-      [date]
+      "SELECT id FROM appointments WHERE status != 'cancelled' AND start_time < ? AND end_time > ?",
+      [end, start]
     );
 
-    for (const appt of existing) {
-      if (hasOverlap(startTime, endTime, appt.start_time, appt.end_time)) {
-        return res.status(409).json({ error: 'This time slot is already booked' });
-      }
+    if (existing.length > 0) {
+      return res.status(409).json({ error: 'This time slot is already booked' });
     }
 
     // 4. Create the appointment
     const apptId = crypto.randomUUID();
     await db.query(
-      `INSERT INTO appointments (id, user_id, pet_id, date, start_time, end_time, status, notes) 
-       VALUES (?, ?, ?, ?, ?, ?, 'pending', ?)`,
-      [apptId, req.user.id, petId, date, startTime, endTime, notes || '']
+      `INSERT INTO appointments (id, user_id, pet_id, start_time, end_time, status, notes) 
+       VALUES (?, ?, ?, ?, ?, 'pending', ?)`,
+      [apptId, req.user.id, petId, start, end, notes || '']
     );
 
     res.status(201).json({
@@ -119,15 +111,22 @@ router.post('/', async (req, res) => {
 router.get('/', async (req, res) => {
   try {
     const [rows] = await db.query(
-      `SELECT a.id, a.date, a.start_time, a.end_time, a.status, a.notes, a.created_at,
+      `SELECT a.id, a.start_time, a.end_time, a.status, a.notes, a.created_at,
               p.id AS pet_id, p.name AS pet_name, p.breed AS pet_breed, p.age AS pet_age
        FROM appointments a
        JOIN pets p ON a.pet_id = p.id
        WHERE a.user_id = ?
-       ORDER BY a.date DESC, a.start_time DESC`,
+       ORDER BY a.start_time DESC`,
       [req.user.id]
     );
-    res.status(200).json({ appointments: rows });
+
+    const formatted = rows.map(r => ({
+      ...r,
+      start_time: r.start_time instanceof Date ? r.start_time.toISOString() : r.start_time,
+      end_time: r.end_time instanceof Date ? r.end_time.toISOString() : r.end_time
+    }));
+
+    res.status(200).json({ appointments: formatted });
   } catch (err) {
     console.error('Error fetching client appointments:', err);
     res.status(500).json({ error: 'An error occurred while fetching appointments' });
@@ -141,7 +140,7 @@ router.get('/', async (req, res) => {
 router.get('/:id', async (req, res) => {
   try {
     const [rows] = await db.query(
-      `SELECT a.id, a.date, a.start_time, a.end_time, a.status, a.notes, a.created_at,
+      `SELECT a.id, a.start_time, a.end_time, a.status, a.notes, a.created_at,
               p.id AS pet_id, p.name AS pet_name, p.breed AS pet_breed
        FROM appointments a
        JOIN pets p ON a.pet_id = p.id
@@ -153,7 +152,14 @@ router.get('/:id', async (req, res) => {
       return res.status(404).json({ error: 'Appointment not found or unauthorized' });
     }
 
-    res.status(200).json({ appointment: rows[0] });
+    const r = rows[0];
+    const formatted = {
+      ...r,
+      start_time: r.start_time instanceof Date ? r.start_time.toISOString() : r.start_time,
+      end_time: r.end_time instanceof Date ? r.end_time.toISOString() : r.end_time
+    };
+
+    res.status(200).json({ appointment: formatted });
   } catch (err) {
     console.error('Error fetching appointment detail:', err);
     res.status(500).json({ error: 'An error occurred while fetching the appointment' });
@@ -199,18 +205,20 @@ router.patch('/:id/cancel', async (req, res) => {
 router.get('/admin/all', requireAdmin, async (req, res) => {
   try {
     const [rows] = await db.query(
-      `SELECT a.id, a.date, a.start_time, a.end_time, a.status, a.notes, a.created_at,
+      `SELECT a.id, a.start_time, a.end_time, a.status, a.notes, a.created_at,
               p.id AS pet_id, p.name AS pet_name, p.breed AS pet_breed,
               u.id AS user_id, u.username AS client_username, u.encrypted_name, u.encrypted_email, u.encrypted_phone
        FROM appointments a
        JOIN pets p ON a.pet_id = p.id
        JOIN users u ON a.user_id = u.id
-       ORDER BY a.date DESC, a.start_time DESC`
+       ORDER BY a.start_time DESC`
     );
 
     // Decrypt the personal client information in each row
     const decryptedAppointments = rows.map(row => {
       const appt = { ...row };
+      appt.start_time = row.start_time instanceof Date ? row.start_time.toISOString() : row.start_time;
+      appt.end_time = row.end_time instanceof Date ? row.end_time.toISOString() : row.end_time;
       appt.client_name = decrypt(row.encrypted_name);
       appt.client_email = decrypt(row.encrypted_email);
       appt.client_phone = decrypt(row.encrypted_phone);

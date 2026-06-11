@@ -54,8 +54,8 @@ export default function ClientDashboard() {
     setPetError('');
     setPetSuccess('');
 
-    if (!petName || !petBreed || !petAge) {
-      setPetError('Name, Breed, and Age are required');
+    if (!petName || !petBreed) {
+      setPetError('Name and Breed are required');
       return;
     }
 
@@ -63,7 +63,7 @@ export default function ClientDashboard() {
       await apiRequest('/pets', 'POST', {
         name: petName,
         breed: petBreed,
-        age: parseInt(petAge, 10),
+        age: petAge ? parseInt(petAge, 10) : null,
         special_notes: petNotes
       });
       setPetSuccess('Pet added successfully!');
@@ -95,13 +95,26 @@ export default function ClientDashboard() {
     }
 
     try {
+      // Combine local inputs into local Date objects
+      const localStart = new Date(`${apptDate}T${apptStartTime}`);
+      const localEnd = new Date(`${apptDate}T${apptEndTime}`);
+
+      if (isNaN(localStart.getTime()) || isNaN(localEnd.getTime())) {
+        setApptError('Invalid date or time selected');
+        return;
+      }
+
+      // Serialize to UTC ISO strings
+      const utcStartTime = localStart.toISOString();
+      const utcEndTime = localEnd.toISOString();
+
       await apiRequest('/appointments', 'POST', {
         petId: selectedPet,
-        date: apptDate,
-        startTime: apptStartTime + ':00', // Format as HH:MM:SS
-        endTime: apptEndTime + ':00',
+        startTime: utcStartTime,
+        endTime: utcEndTime,
         notes: apptNotes
       });
+      
       setApptSuccess('Appointment scheduled successfully! Awaiting groomer review.');
       setApptDate('');
       setApptStartTime('');
@@ -129,16 +142,19 @@ export default function ClientDashboard() {
     }
   }
 
-  // Format Time representation from "09:00:00" -> "09:00"
-  function formatTime(t) {
-    return t ? t.substring(0, 5) : '';
+  // Format UTC ISO string into client local time: "09:00 AM"
+  function formatTime(isoString) {
+    if (!isoString) return '';
+    const d = new Date(isoString);
+    return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   }
 
-  // Format Date representation
-  function formatDate(d) {
-    if (!d) return '';
-    return new Date(d).toLocaleDateString('en-US', {
-      weekday: 'short', month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC'
+  // Format UTC ISO string into client local date: "Thu, Jun 11, 2026"
+  function formatDate(isoString) {
+    if (!isoString) return '';
+    const d = new Date(isoString);
+    return d.toLocaleDateString([], {
+      weekday: 'short', month: 'short', day: 'numeric', year: 'numeric'
     });
   }
 
@@ -181,7 +197,7 @@ export default function ClientDashboard() {
               </label>
               <label htmlFor="petAge">
                 Age (years)
-                <input type="number" id="petAge" value={petAge} onChange={(e) => setPetAge(e.target.value)} placeholder="3" min="0" required />
+                <input type="number" id="petAge" value={petAge} onChange={(e) => setPetAge(e.target.value)} placeholder="3" min="0" />
               </label>
             </div>
             
@@ -216,7 +232,9 @@ export default function ClientDashboard() {
                 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <strong style={{ color: 'var(--pico-primary)' }}>{pet.name}</strong>
-                    <span style={{ fontSize: '0.8rem', color: 'var(--pico-muted-color)' }}>{pet.breed} ({pet.age} yrs)</span>
+                    <span style={{ fontSize: '0.8rem', color: 'var(--pico-muted-color)' }}>
+                      {pet.breed}{pet.age !== null && pet.age !== undefined ? ` (${pet.age} yrs)` : ''}
+                    </span>
                   </div>
                   {pet.special_notes && (
                     <p style={{ 
@@ -313,7 +331,7 @@ export default function ClientDashboard() {
               <ul style={{ listStyle: 'none', display: 'flex', flexDirection: 'column', gap: '0.5rem', maxHeight: '120px', overflowY: 'auto', padding: 0, margin: 0 }}>
                 {workingHours.map(wh => (
                   <li key={wh.id} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', borderBottom: '1px solid var(--pico-border-color)', paddingBottom: '0.25rem', marginBottom: 0 }}>
-                    <span style={{ fontWeight: '500' }}>{formatDate(wh.date)}</span>
+                    <span style={{ fontWeight: '500' }}>{formatDate(wh.start_time)}</span>
                     <span style={{ color: 'var(--pico-primary)', fontWeight: '600' }}>
                       {formatTime(wh.start_time)} - {formatTime(wh.end_time)}
                     </span>
@@ -352,7 +370,7 @@ export default function ClientDashboard() {
                 {appointments.map(appt => (
                   <tr key={appt.id}>
                     <td><strong>{appt.pet_name}</strong></td>
-                    <td>{formatDate(appt.date)}</td>
+                    <td>{formatDate(appt.start_time)}</td>
                     <td style={{ color: 'var(--pico-primary)', fontWeight: '600' }}>
                       {formatTime(appt.start_time)} - {formatTime(appt.end_time)}
                     </td>
