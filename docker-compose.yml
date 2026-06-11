@@ -1,0 +1,59 @@
+version: '3.8'
+
+services:
+  db:
+    image: mysql:9.7
+    container_name: dogwash_db
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_DATABASE: dog_wash
+      MYSQL_USER: dogwash_user
+      MYSQL_PASSWORD: dogwash_password
+    ports:
+      - "3306:3306"
+    volumes:
+      - db_data:/var/lib/mysql
+      - ./db/init.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - dogwash_network
+
+  backend:
+    build: ./backend
+    container_name: dogwash_backend
+    restart: always
+    ports:
+      - "5000:5000"
+    environment:
+      - PORT=5000
+      - DB_HOST=db
+      - DB_USER=dogwash_user
+      - DB_PASSWORD=dogwash_password
+      - DB_NAME=dog_wash
+      - JWT_SECRET=supersecretjwtkey_12345
+      - ENCRYPTION_KEY=0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
+    depends_on:
+      - db
+    networks:
+      - dogwash_network
+
+  frontend:
+    build:
+      context: ./frontend
+      target: development # Change to 'production' to use Nginx build
+    container_name: dogwash_frontend
+    restart: always
+    ports:
+      - "5173:5173"       # Use this for target: development
+      # - "5173:80"       # Use this for target: production
+    depends_on:
+      - backend
+    networks:
+      - dogwash_network
+
+volumes:
+  db_data:
+
+networks:
+  dogwash_network:
+    driver: bridge
