@@ -9,6 +9,17 @@ import AdminDashboard from './components/AdminDashboard';
 function AppContent() {
   const { user, loading } = useAuth();
   const [currentView, setCurrentView] = useState('home');
+  const [theme, setTheme] = useState(() => localStorage.getItem('theme') || 'dark');
+
+  // Handle Theme state changes
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', theme);
+    localStorage.setItem('theme', theme);
+  }, [theme]);
+
+  const toggleTheme = () => {
+    setTheme((prev) => (prev === 'dark' ? 'light' : 'dark'));
+  };
 
   // Guard routing view changes if auth states change
   useEffect(() => {
@@ -30,32 +41,24 @@ function AppContent() {
 
   if (loading) {
     return (
-      <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', height: '100vh', gap: '1rem', background: 'var(--bg-gradient)' }}>
-        <div style={{ 
-          width: '50px', 
-          height: '50px', 
-          border: '5px solid var(--glass-border)', 
-          borderTopColor: 'var(--color-primary)', 
-          borderRadius: '50%', 
-          animation: 'spin 1s linear infinite'
-        }}></div>
-        <div style={{ color: 'var(--text-secondary)', fontFamily: 'var(--font-display)', fontWeight: 500 }}>
+      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
+        <article aria-busy="true" style={{ width: '350px', textAlign: 'center', margin: 0 }}>
           Securing Session...
-        </div>
-        <style>{`
-          @keyframes spin {
-            to { transform: rotate(360deg); }
-          }
-        `}</style>
+        </article>
       </div>
     );
   }
 
   return (
     <div>
-      <Navbar currentView={currentView} setCurrentView={setCurrentView} />
+      <Navbar 
+        currentView={currentView} 
+        setCurrentView={setCurrentView} 
+        theme={theme} 
+        toggleTheme={toggleTheme} 
+      />
       
-      <main style={{ paddingBottom: '4rem' }}>
+      <main className="container" style={{ paddingBottom: '4rem', paddingTop: '2rem' }}>
         {currentView === 'home' && <Home setCurrentView={setCurrentView} />}
         {currentView === 'login' && <LoginRegister setCurrentView={setCurrentView} />}
         {currentView === 'client-dashboard' && (

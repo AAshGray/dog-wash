@@ -82,16 +82,13 @@ def main():
         print(f"FAIL: Client setup failed: {e}")
         sys.exit(1)
 
-    # 2. Login/Register Admin
+    # 2. Login Seeded Admin
     try:
-        make_request(f"{auth_url}/register", "POST", {
-            "username": user_admin, "password": password, "name": "Admin User", "email": email_admin, "phone": "222-222-2222", "role": "admin"
-        })
         _, res = make_request(f"{auth_url}/login", "POST", {
-            "loginIdentifier": user_admin, "password": password
+            "loginIdentifier": "admin", "password": "adminpassword"
         })
         admin_token = res["token"]
-        print(f"PASS: Admin setup complete ({user_admin}).")
+        print("PASS: Admin setup complete (seeded admin).")
     except Exception as e:
         print(f"FAIL: Admin setup failed: {e}")
         sys.exit(1)

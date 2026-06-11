@@ -6,10 +6,10 @@ services:
     container_name: dogwash_db
     restart: always
     environment:
-      MYSQL_ROOT_PASSWORD: rootpassword
-      MYSQL_DATABASE: dog_wash
-      MYSQL_USER: dogwash_user
-      MYSQL_PASSWORD: dogwash_password
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-rootpassword}
+      MYSQL_DATABASE: ${DB_NAME:-dog_wash}
+      MYSQL_USER: ${DB_USER:-dogwash_user}
+      MYSQL_PASSWORD: ${DB_PASSWORD:-dogwash_password}
     ports:
       - "3306:3306"
     volumes:
@@ -27,11 +27,11 @@ services:
     environment:
       - PORT=5000
       - DB_HOST=db
-      - DB_USER=dogwash_user
-      - DB_PASSWORD=dogwash_password
-      - DB_NAME=dog_wash
-      - JWT_SECRET=supersecretjwtkey_12345
-      - ENCRYPTION_KEY=0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
+      - DB_USER=${DB_USER:-dogwash_user}
+      - DB_PASSWORD=${DB_PASSWORD:-dogwash_password}
+      - DB_NAME=${DB_NAME:-dog_wash}
+      - JWT_SECRET=${JWT_SECRET:-supersecretjwtkey_12345}
+      - ENCRYPTION_KEY=${ENCRYPTION_KEY:-0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef}
     depends_on:
       - db
     networks:

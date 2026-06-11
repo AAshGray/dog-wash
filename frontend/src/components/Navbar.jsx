@@ -1,70 +1,92 @@
 import React from 'react';
 import { useAuth } from '../context/AuthContext';
 
-export default function Navbar({ currentView, setCurrentView }) {
+export default function Navbar({ currentView, setCurrentView, theme, toggleTheme }) {
   const { user, logout } = useAuth();
 
   return (
-    <nav className="navbar">
-      <div className="logo" style={{ cursor: 'pointer' }} onClick={() => setCurrentView('home')}>
-        ✨ Glow & Go
-      </div>
-      <ul className="nav-links">
-        <li>
-          <button 
-            className={`btn btn-link nav-link ${currentView === 'home' ? 'active' : ''}`}
-            onClick={() => setCurrentView('home')}
-          >
-            Home
-          </button>
-        </li>
-        {user ? (
-          <>
-            {user.role === 'client' ? (
-              <li>
-                <button 
-                  className={`btn btn-link nav-link ${currentView === 'client-dashboard' ? 'active' : ''}`}
-                  onClick={() => setCurrentView('client-dashboard')}
-                >
-                  Dashboard
-                </button>
-              </li>
-            ) : (
-              <li>
-                <button 
-                  className={`btn btn-link nav-link ${currentView === 'admin-dashboard' ? 'active' : ''}`}
-                  onClick={() => setCurrentView('admin-dashboard')}
-                >
-                  Admin Panel
-                </button>
-              </li>
-            )}
-            <li>
-              <span style={{ color: 'var(--text-secondary)', fontSize: '0.95rem', marginRight: '0.5rem' }}>
-                Hi, <strong>{user.name}</strong> ({user.role})
-              </span>
-            </li>
-            <li>
-              <button className="btn btn-danger" style={{ padding: '0.4rem 1rem', fontSize: '0.9rem' }} onClick={() => {
-                logout();
-                setCurrentView('home');
-              }}>
-                Logout
-              </button>
-            </li>
-          </>
-        ) : (
+    <header className="container" style={{ borderBottom: '1px solid var(--pico-border-color)', marginBottom: '1rem' }}>
+      <nav>
+        <ul>
+          <li style={{ cursor: 'pointer' }} onClick={() => setCurrentView('home')}>
+            <strong>🧼 Dog Wash</strong>
+          </li>
+        </ul>
+        <ul>
           <li>
-            <button 
-              className="btn btn-primary" 
-              style={{ padding: '0.5rem 1.25rem', fontSize: '0.9rem' }}
-              onClick={() => setCurrentView('login')}
+            <button
+              className={currentView === 'home' ? '' : 'outline'}
+              onClick={() => setCurrentView('home')}
+              style={{ fontSize: '0.9rem', padding: '0.4rem 0.85rem', margin: 0 }}
             >
-              Sign In
+              Home
             </button>
           </li>
-        )}
-      </ul>
-    </nav>
+          
+          {user ? (
+            <>
+              {user.role === 'client' ? (
+                <li>
+                  <button
+                    className={currentView === 'client-dashboard' ? '' : 'outline'}
+                    onClick={() => setCurrentView('client-dashboard')}
+                    style={{ fontSize: '0.9rem', padding: '0.4rem 0.85rem', margin: 0 }}
+                  >
+                    Dashboard
+                  </button>
+                </li>
+              ) : (
+                <li>
+                  <button
+                    className={currentView === 'admin-dashboard' ? '' : 'outline'}
+                    onClick={() => setCurrentView('admin-dashboard')}
+                    style={{ fontSize: '0.9rem', padding: '0.4rem 0.85rem', margin: 0 }}
+                  >
+                    Admin Panel
+                  </button>
+                </li>
+              )}
+              <li style={{ fontSize: '0.85rem' }}>
+                Hi, <strong>{user.name || user.username}</strong>
+              </li>
+              <li>
+                <button 
+                  className="danger" 
+                  style={{ fontSize: '0.85rem', padding: '0.4rem 0.85rem', margin: 0 }} 
+                  onClick={() => {
+                    logout();
+                    setCurrentView('home');
+                  }}
+                >
+                  Logout
+                </button>
+              </li>
+            </>
+          ) : (
+            <li>
+              <button
+                className={currentView === 'login' ? '' : 'outline'}
+                onClick={() => setCurrentView('login')}
+                style={{ fontSize: '0.9rem', padding: '0.4rem 0.85rem', margin: 0 }}
+              >
+                Sign In
+              </button>
+            </li>
+          )}
+          
+          {/* Theme Toggle Button */}
+          <li>
+            <button 
+              onClick={toggleTheme} 
+              className="outline"
+              style={{ fontSize: '0.85rem', padding: '0.4rem 0.85rem', margin: 0 }}
+              title="Toggle Light/Dark Theme"
+            >
+              {theme === 'dark' ? '☀️' : '🌙'}
+            </button>
+          </li>
+        </ul>
+      </nav>
+    </header>
   );
 }

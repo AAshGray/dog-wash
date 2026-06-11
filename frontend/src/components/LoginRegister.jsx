@@ -22,7 +22,7 @@ export default function LoginRegister({ setCurrentView }) {
     try {
       if (isLogin) {
         if (!username || !password) {
-          setError('Username/Email and Password are required');
+          setError('Email and Password are required');
           return;
         }
         const user = await login(username, password);
@@ -48,20 +48,22 @@ export default function LoginRegister({ setCurrentView }) {
   }
 
   return (
-    <div style={{ maxWidth: '450px', margin: '4rem auto', padding: '1.5rem' }}>
-      <div className="glass-card animate-fade-in">
-        <h2 style={{ textAlign: 'center', marginBottom: '1.5rem', fontSize: '2rem' }}>
-          {isLogin ? 'Welcome Back' : 'Get Started'}
-        </h2>
+    <div style={{ maxWidth: '460px', margin: '2rem auto' }}>
+      <article className="animate-fade-in" style={{ margin: 0 }}>
+        <header style={{ textAlign: 'center' }}>
+          <h2 style={{ margin: 0, fontSize: '1.75rem' }}>
+            {isLogin ? 'Welcome Back' : 'Get Started'}
+          </h2>
+        </header>
         
         {error && (
           <div style={{ 
-            background: 'rgba(239, 68, 68, 0.15)', 
+            background: 'rgba(239, 68, 68, 0.1)', 
             border: '1px solid var(--color-danger)', 
             color: 'var(--color-danger)', 
-            padding: '0.75rem', 
+            padding: '0.75rem 1rem', 
             borderRadius: 'var(--border-radius-md)', 
-            marginBottom: '1rem',
+            marginBottom: '1.5rem',
             fontSize: '0.9rem'
           }}>
             ⚠️ {error}
@@ -70,35 +72,35 @@ export default function LoginRegister({ setCurrentView }) {
 
         {success && (
           <div style={{ 
-            background: 'rgba(16, 185, 129, 0.15)', 
+            background: 'rgba(16, 185, 129, 0.1)', 
             border: '1px solid var(--color-success)', 
             color: 'var(--color-success)', 
-            padding: '0.75rem', 
+            padding: '0.75rem 1rem', 
             borderRadius: 'var(--border-radius-md)', 
-            marginBottom: '1rem',
+            marginBottom: '1.5rem',
             fontSize: '0.9rem'
           }}>
             ✅ {success}
           </div>
         )}
 
-        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-          <div className="form-group">
-            <label htmlFor="loginIdentifier">{isLogin ? 'Username or Email' : 'Username'}</label>
+        <form onSubmit={handleSubmit}>
+          <label htmlFor="loginIdentifier">
+            {isLogin ? 'Email Address' : 'Username'}
             <input 
               type="text" 
               id="loginIdentifier"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
-              placeholder={isLogin ? 'admin / your email' : 'Choose a unique username'}
+              placeholder={isLogin ? 'example@email.com' : 'Choose a unique username'}
               required
             />
-          </div>
+          </label>
 
           {!isLogin && (
             <>
-              <div className="form-group">
-                <label htmlFor="name">Full Name</label>
+              <label htmlFor="name">
+                Full Name
                 <input 
                   type="text" 
                   id="name"
@@ -107,10 +109,10 @@ export default function LoginRegister({ setCurrentView }) {
                   placeholder="John Doe"
                   required
                 />
-              </div>
+              </label>
 
-              <div className="form-group">
-                <label htmlFor="email">Email Address</label>
+              <label htmlFor="email">
+                Email Address
                 <input 
                   type="email" 
                   id="email"
@@ -119,10 +121,10 @@ export default function LoginRegister({ setCurrentView }) {
                   placeholder="john@example.com"
                   required
                 />
-              </div>
+              </label>
 
-              <div className="form-group">
-                <label htmlFor="phone">Phone Number</label>
+              <label htmlFor="phone">
+                Phone Number
                 <input 
                   type="text" 
                   id="phone"
@@ -131,12 +133,12 @@ export default function LoginRegister({ setCurrentView }) {
                   placeholder="555-123-4567"
                   required
                 />
-              </div>
+              </label>
             </>
           )}
 
-          <div className="form-group">
-            <label htmlFor="password">Password</label>
+          <label htmlFor="password">
+            Password
             <input 
               type="password" 
               id="password"
@@ -145,18 +147,22 @@ export default function LoginRegister({ setCurrentView }) {
               placeholder="••••••••"
               required
             />
-          </div>
+          </label>
 
-          <button type="submit" className="btn btn-primary" style={{ width: '100%', padding: '0.85rem' }}>
+          <button type="submit" style={{ width: '100%', marginTop: '0.5rem' }}>
             {isLogin ? 'Sign In' : 'Register'}
           </button>
         </form>
 
-        <div style={{ textAlign: 'center', marginTop: '1.5rem', fontSize: '0.9rem', color: 'var(--text-secondary)' }}>
+        <footer style={{ textAlign: 'center', fontSize: '0.9rem', color: 'var(--pico-muted-color)', padding: '1rem 0 0 0' }}>
           {isLogin ? "Don't have an account?" : "Already have an account?"} {' '}
-          <button 
-            type="button" 
-            className="btn btn-link" 
+          <span 
+            style={{ 
+              color: 'var(--pico-primary)', 
+              cursor: 'pointer', 
+              textDecoration: 'underline', 
+              fontWeight: 500 
+            }}
             onClick={() => {
               setIsLogin(!isLogin);
               setError('');
@@ -164,9 +170,9 @@ export default function LoginRegister({ setCurrentView }) {
             }}
           >
             {isLogin ? 'Create one now' : 'Sign in instead'}
-          </button>
-        </div>
-      </div>
+          </span>
+        </footer>
+      </article>
     </div>
   );
 }

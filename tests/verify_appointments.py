@@ -103,12 +103,9 @@ def main():
         }, other_token)
         other_pet_id = res["petId"]
 
-        # Register and login admin
-        make_request(f"{auth_url}/register", "POST", {
-            "username": user_admin, "password": password, "name": "Groomer Admin", "email": email_admin, "phone": "555-555-5555", "role": "admin"
-        })
+        # Login seeded admin
         _, res = make_request(f"{auth_url}/login", "POST", {
-            "loginIdentifier": user_admin, "password": password
+            "loginIdentifier": "admin", "password": "adminpassword"
         })
         admin_token = res["token"]
 

@@ -144,155 +144,217 @@ export default function AdminDashboard() {
   }
 
   return (
-    <div style={{ maxWidth: '1200px', margin: '2rem auto', padding: '0 1.5rem', display: 'flex', flexDirection: 'column', gap: '2.5rem' }}>
+    <div className="animate-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '2.5rem' }}>
       
       {/* Page Header */}
-      <div className="glass-card animate-fade-in" style={{ padding: '2rem' }}>
-        <h2 style={{ fontSize: '2.25rem', marginBottom: '0.5rem' }}>✨ Groomer Admin Panel</h2>
-        <p style={{ color: 'var(--text-secondary)' }}>
+      <article style={{ margin: 0 }}>
+        <h2 style={{ fontSize: '1.75rem', marginBottom: '0.5rem' }}>✨ Groomer Admin Panel</h2>
+        <p style={{ color: 'var(--pico-muted-color)', margin: 0, fontSize: '0.95rem' }}>
           Manage client schedules, approve/deny appointments, search registered clients, and apply account ban restrictions.
         </p>
-      </div>
+      </article>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(350px, 1fr))', gap: '2rem' }}>
+      <div className="grid">
         
         {/* Module 1: Working Hours Manager */}
-        <div className="glass-card animate-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-          <h3>⏰ Manage Working Windows</h3>
-          {whError && <div style={{ color: 'var(--color-danger)', fontSize: '0.9rem' }}>⚠️ {whError}</div>}
-          {whSuccess && <div style={{ color: 'var(--color-success)', fontSize: '0.9rem' }}>✅ {whSuccess}</div>}
+        <article style={{ margin: 0 }}>
+          <header>
+            <h3 style={{ fontSize: '1.25rem', margin: 0 }}>⏰ Manage Working Windows</h3>
+          </header>
+          
+          {whError && (
+            <div style={{ color: 'var(--color-danger)', fontSize: '0.9rem', marginBottom: '1rem' }}>
+              ⚠️ {whError}
+            </div>
+          )}
+          {whSuccess && (
+            <div style={{ color: 'var(--color-success)', fontSize: '0.9rem', marginBottom: '1rem' }}>
+              ✅ {whSuccess}
+            </div>
+          )}
 
-          <form onSubmit={handleAddWorkingHours} style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem', borderBottom: '1px solid var(--glass-border)', paddingBottom: '1.5rem' }}>
-            <div className="form-group">
-              <label htmlFor="whDate">Select Date</label>
+          <form onSubmit={handleAddWorkingHours} style={{ borderBottom: '1px solid var(--pico-border-color)', paddingBottom: '1.5rem', marginBottom: '1.5rem' }}>
+            <label htmlFor="whDate">
+              Select Date
               <input type="date" id="whDate" value={whDate} onChange={(e) => setWhDate(e.target.value)} required />
-            </div>
+            </label>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-              <div className="form-group">
-                <label htmlFor="whStart">Start Time</label>
+            <div className="grid" style={{ gap: '1rem' }}>
+              <label htmlFor="whStart">
+                Start Time
                 <input type="time" id="whStart" value={whStartTime} onChange={(e) => setWhStartTime(e.target.value)} required />
-              </div>
-              <div className="form-group">
-                <label htmlFor="whEnd">End Time</label>
+              </label>
+              <label htmlFor="whEnd">
+                End Time
                 <input type="time" id="whEnd" value={whEndTime} onChange={(e) => setWhEndTime(e.target.value)} required />
-              </div>
+              </label>
             </div>
 
-            <button type="submit" className="btn btn-secondary" style={{ padding: '0.65rem' }}>Open Window</button>
+            <button type="submit" className="secondary" style={{ width: '100%', marginTop: '0.5rem' }}>
+              Open Window
+            </button>
           </form>
 
           {/* Active Working Windows List */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', maxHeight: '250px', overflowY: 'auto', paddingRight: '0.5rem' }}>
-            <h4 style={{ fontSize: '0.9rem', color: 'var(--text-secondary)' }}>Open Scheduling Windows</h4>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', maxHeight: '250px', overflowY: 'auto', paddingRight: '0.25rem' }}>
+            <h4 style={{ fontSize: '0.85rem', color: 'var(--pico-muted-color)', fontWeight: 600 }}>
+              Open Scheduling Windows
+            </h4>
             {workingHours.length === 0 ? (
-              <p style={{ color: 'var(--text-muted)', fontStyle: 'italic', fontSize: '0.9rem', textAlign: 'center' }}>No working windows defined yet.</p>
+              <p style={{ color: 'var(--pico-muted-color)', fontStyle: 'italic', fontSize: '0.85rem', textAlign: 'center', margin: '1rem 0' }}>
+                No working windows defined yet.
+              </p>
             ) : (
               workingHours.map(wh => (
-                <div key={wh.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(15, 23, 42, 0.4)', padding: '0.75rem 1rem', border: '1px solid var(--glass-border)', borderRadius: 'var(--border-radius-md)' }}>
-                  <div>
-                    <div style={{ fontSize: '0.9rem', fontWeight: '600' }}>{formatDate(wh.date)}</div>
-                    <div style={{ fontSize: '0.85rem', color: 'var(--color-secondary)' }}>{formatTime(wh.start_time)} - {formatTime(wh.end_time)}</div>
+                <div key={wh.id} style={{ 
+                  display: 'flex', 
+                  justifyContent: 'space-between', 
+                  alignItems: 'center', 
+                  background: 'var(--pico-card-background-color)', 
+                  padding: '0.75rem 1rem', 
+                  border: '1px solid var(--pico-border-color)', 
+                  borderRadius: 'var(--border-radius-md)' 
+                }}>
+                  <div style={{ flex: 1 }}>
+                    <strong style={{ fontSize: '0.85rem', display: 'block' }}>{formatDate(wh.date)}</strong>
+                    <span style={{ fontSize: '0.8rem', color: 'var(--pico-primary)', fontWeight: 600 }}>
+                      {formatTime(wh.start_time)} - {formatTime(wh.end_time)}
+                    </span>
                   </div>
-                  <button className="btn btn-danger" style={{ padding: '0.3rem 0.6rem', fontSize: '0.75rem' }} onClick={() => handleDeleteWorkingHours(wh.id)}>Remove</button>
-                </div>
-              ))
-            )}
-          </div>
-        </div>
-
-        {/* Module 2: Client Ban & Search Registry */}
-        <div className="glass-card animate-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-          <h3>👥 Client Database</h3>
-          {clientError && <div style={{ color: 'var(--color-danger)', fontSize: '0.9rem' }}>⚠️ {clientError}</div>}
-
-          {/* Search Box */}
-          <form onSubmit={handleSearchClients} style={{ display: 'flex', gap: '0.5rem' }}>
-            <input 
-              type="text" 
-              value={searchQuery} 
-              onChange={(e) => setSearchQuery(e.target.value)} 
-              placeholder="Search name, phone, email, username..." 
-              style={{ flex: 1, padding: '0.5rem' }}
-            />
-            <button type="submit" className="btn btn-secondary" style={{ padding: '0.5rem 1rem' }}>Search</button>
-          </form>
-
-          {/* Clients List */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', maxHeight: '420px', overflowY: 'auto', paddingRight: '0.5rem' }}>
-            {clients.length === 0 ? (
-              <p style={{ color: 'var(--text-muted)', fontStyle: 'italic', fontSize: '0.9rem', textAlign: 'center' }}>No clients found.</p>
-            ) : (
-              clients.map(client => (
-                <div key={client.id} style={{ background: 'rgba(15, 23, 42, 0.4)', border: '1px solid var(--glass-border)', padding: '1rem', borderRadius: 'var(--border-radius-md)', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-                    <h4 style={{ color: 'var(--text-primary)' }}>{client.name}</h4>
-                    <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>👤 @{client.username}</span>
-                    <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>✉️ {client.email}</span>
-                    <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>📞 {client.phone}</span>
-                    {client.is_banned === 1 && (
-                      <span className="status-badge status-banned" style={{ width: 'fit-content', marginTop: '0.5rem' }}>Banned Account</span>
-                    )}
-                  </div>
-                  
                   <button 
-                    className={`btn ${client.is_banned === 1 ? 'btn-secondary' : 'btn-danger'}`} 
-                    style={{ padding: '0.35rem 0.75rem', fontSize: '0.8rem' }}
-                    onClick={() => handleToggleBan(client.id, client.is_banned === 1)}
+                    className="danger" 
+                    style={{ padding: '0.25rem 0.5rem', fontSize: '0.75rem', margin: 0, width: 'auto' }} 
+                    onClick={() => handleDeleteWorkingHours(wh.id)}
                   >
-                    {client.is_banned === 1 ? 'Unban' : 'Ban Client'}
+                    Remove
                   </button>
                 </div>
               ))
             )}
           </div>
-        </div>
+        </article>
+
+        {/* Module 2: Client Ban & Search Registry */}
+        <article style={{ margin: 0 }}>
+          <header>
+            <h3 style={{ fontSize: '1.25rem', margin: 0 }}>👥 Client Database</h3>
+          </header>
+          
+          {clientError && (
+            <div style={{ color: 'var(--color-danger)', fontSize: '0.9rem', marginBottom: '1rem' }}>
+              ⚠️ {clientError}
+            </div>
+          )}
+
+          {/* Search Box - Grouped input and button */}
+          <form onSubmit={handleSearchClients} style={{ marginBottom: '1.5rem' }}>
+            <fieldset role="group" style={{ margin: 0 }}>
+              <input 
+                type="search" 
+                value={searchQuery} 
+                onChange={(e) => setSearchQuery(e.target.value)} 
+                placeholder="Search clients..." 
+              />
+              <input type="submit" value="Search" style={{ width: 'auto' }} />
+            </fieldset>
+          </form>
+
+          {/* Clients List */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', maxHeight: '420px', overflowY: 'auto', paddingRight: '0.25rem' }}>
+            {clients.length === 0 ? (
+              <p style={{ color: 'var(--pico-muted-color)', fontStyle: 'italic', fontSize: '0.85rem', textAlign: 'center', margin: '1rem 0' }}>
+                No clients found.
+              </p>
+            ) : (
+              clients.map(client => (
+                <div key={client.id} style={{ 
+                  background: 'var(--pico-card-background-color)', 
+                  border: '1px solid var(--pico-border-color)', 
+                  padding: '1rem', 
+                  borderRadius: 'var(--border-radius-md)', 
+                  display: 'flex', 
+                  justifyContent: 'space-between', 
+                  alignItems: 'flex-start' 
+                }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', flex: 1 }}>
+                    <strong style={{ color: 'var(--pico-color)' }}>{client.name}</strong>
+                    <span style={{ fontSize: '0.8rem', color: 'var(--pico-muted-color)' }}>👤 @{client.username}</span>
+                    <span style={{ fontSize: '0.8rem', color: 'var(--pico-muted-color)' }}>✉️ {client.email}</span>
+                    <span style={{ fontSize: '0.8rem', color: 'var(--pico-muted-color)' }}>📞 {client.phone}</span>
+                    {client.is_banned === 1 && (
+                      <span className="status-badge status-banned" style={{ width: 'fit-content', marginTop: '0.5rem' }}>
+                        Banned Account
+                      </span>
+                    )}
+                  </div>
+                  
+                  <button 
+                    className={client.is_banned === 1 ? 'success' : 'danger'} 
+                    style={{ padding: '0.3rem 0.6rem', fontSize: '0.75rem', margin: 0, width: 'auto', alignSelf: 'center' }}
+                    onClick={() => handleToggleBan(client.id, client.is_banned === 1)}
+                  >
+                    {client.is_banned === 1 ? 'Unban' : 'Ban'}
+                  </button>
+                </div>
+              ))
+            )}
+          </div>
+        </article>
 
       </div>
 
       {/* Module 3: Master Appointment Scheduler Grid */}
-      <div className="glass-card animate-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-        <h3>📅 Master Appointment Log</h3>
+      <article style={{ margin: 0 }}>
+        <header>
+          <h3 style={{ fontSize: '1.25rem', margin: 0 }}>📅 Master Appointment Log</h3>
+        </header>
+        
         <div style={{ overflowX: 'auto' }}>
           {appointments.length === 0 ? (
-            <p style={{ color: 'var(--text-muted)', fontStyle: 'italic', padding: '2rem 0', textAlign: 'center' }}>No appointments logged in system.</p>
+            <p style={{ color: 'var(--pico-muted-color)', fontStyle: 'italic', padding: '2rem 0', textAlign: 'center', margin: 0 }}>
+              No appointments logged in system.
+            </p>
           ) : (
-            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', minWidth: '850px' }}>
+            <table className="striped" style={{ margin: 0 }}>
               <thead>
-                <tr style={{ borderBottom: '1px solid var(--glass-border)', paddingBottom: '0.75rem' }}>
-                  <th style={{ padding: '0.75rem', color: 'var(--text-secondary)' }}>Pet Name</th>
-                  <th style={{ padding: '0.75rem', color: 'var(--text-secondary)' }}>Client Details</th>
-                  <th style={{ padding: '0.75rem', color: 'var(--text-secondary)' }}>Date</th>
-                  <th style={{ padding: '0.75rem', color: 'var(--text-secondary)' }}>Time Slot</th>
-                  <th style={{ padding: '0.75rem', color: 'var(--text-secondary)' }}>Status</th>
-                  <th style={{ padding: '0.75rem', color: 'var(--text-secondary)' }}>Notes</th>
-                  <th style={{ padding: '0.75rem', color: 'var(--text-secondary)' }}>Update Status</th>
+                <tr>
+                  <th>Pet Name</th>
+                  <th>Client Details</th>
+                  <th>Date</th>
+                  <th>Time Slot</th>
+                  <th>Status</th>
+                  <th>Notes</th>
+                  <th>Update Status</th>
                 </tr>
               </thead>
               <tbody>
                 {appointments.map(appt => (
-                  <tr key={appt.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.03)' }}>
-                    <td style={{ padding: '1rem 0.75rem', fontWeight: '600', color: 'var(--color-accent)' }}>
-                      {appt.pet_name} <br/>
-                      <span style={{ fontSize: '0.75rem', fontWeight: '400', color: 'var(--text-secondary)' }}>{appt.pet_breed}</span>
+                  <tr key={appt.id}>
+                    <td>
+                      <strong>{appt.pet_name}</strong> <br/>
+                      <small style={{ color: 'var(--pico-muted-color)' }}>{appt.pet_breed}</small>
                     </td>
-                    <td style={{ padding: '1rem 0.75rem', fontSize: '0.85rem' }}>
+                    <td style={{ fontSize: '0.85rem' }}>
                       <strong>{appt.client_name}</strong> <br/>
-                      <span style={{ color: 'var(--text-muted)' }}>@{appt.client_username}</span> <br/>
-                      <span style={{ color: 'var(--text-secondary)' }}>✉️ {appt.client_email}</span> <br/>
-                      <span style={{ color: 'var(--text-secondary)' }}>📞 {appt.client_phone}</span>
+                      <span style={{ color: 'var(--pico-muted-color)' }}>@{appt.client_username}</span> <br/>
+                      <span style={{ color: 'var(--pico-muted-color)' }}>✉️ {appt.client_email}</span> <br/>
+                      <span style={{ color: 'var(--pico-muted-color)' }}>📞 {appt.client_phone}</span>
                     </td>
-                    <td style={{ padding: '1rem 0.75rem' }}>{formatDate(appt.date)}</td>
-                    <td style={{ padding: '1rem 0.75rem', color: 'var(--color-secondary)' }}>{formatTime(appt.start_time)} - {formatTime(appt.end_time)}</td>
-                    <td style={{ padding: '1rem 0.75rem' }}>
+                    <td>{formatDate(appt.date)}</td>
+                    <td style={{ color: 'var(--pico-primary)', fontWeight: '600' }}>
+                      {formatTime(appt.start_time)} - {formatTime(appt.end_time)}
+                    </td>
+                    <td>
                       <span className={`status-badge status-${appt.status}`}>{appt.status}</span>
                     </td>
-                    <td style={{ padding: '1rem 0.75rem', fontSize: '0.85rem', color: 'var(--text-secondary)', maxWidth: '200px' }}>{appt.notes || '—'}</td>
-                    <td style={{ padding: '1rem 0.75rem' }}>
+                    <td style={{ fontSize: '0.85rem', color: 'var(--pico-muted-color)', maxWidth: '200px' }}>
+                      {appt.notes || '—'}
+                    </td>
+                    <td>
                       <select 
                         value={appt.status} 
                         onChange={(e) => handleStatusChange(appt.id, e.target.value)}
-                        style={{ padding: '0.4rem 0.5rem', fontSize: '0.85rem' }}
+                        style={{ padding: '0.25rem 0.5rem', fontSize: '0.8rem', margin: 0, width: 'auto', height: 'auto' }}
                       >
                         <option value="pending">Pending</option>
                         <option value="confirmed">Confirmed</option>
@@ -306,7 +368,7 @@ export default function AdminDashboard() {
             </table>
           )}
         </div>
-      </div>
+      </article>
 
     </div>
   );
